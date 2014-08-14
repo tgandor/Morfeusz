@@ -1,0 +1,119 @@
+
+
+########## generate default dictionary data #################
+
+if (SKIP_DICTIONARY_BUILDING)
+    message ("SKIPPING dictionary building")
+else ()
+    if (EMBEDDED_DEFAULT_DICT)
+        add_custom_command (
+            OUTPUT "${ANALYZER_DICTIONARY_CPP}" "${GENERATOR_DICTIONARY_CPP}"
+            COMMAND python ${PROJECT_SOURCE_DIR}/fsabuilder/morfeusz_builder --input-files="${INPUT_DICTIONARIES}" --analyzer-cpp="${ANALYZER_DICTIONARY_CPP}" --generator-cpp="${GENERATOR_DICTIONARY_CPP}" --tagset-file="${INPUT_TAGSET}" --segments-file="${SEGMENT_RULES_FILE}"
+            DEPENDS "${INPUT_DICTIONARY}"
+            COMMENT "Building default dictionary C++ files"
+        )
+        add_custom_target ( analyzer-dictionary DEPENDS "${ANALYZER_DICTIONARY_CPP}")
+        add_custom_target ( generator-dictionary DEPENDS "${GENERATOR_DICTIONARY_CPP}")
+        add_custom_target ( dictionary DEPENDS analyzer-dictionary generator-dictionary)
+    else ()
+        set (ANALYZER_DICTIONARY_FILE "${DEFAULT_DICT_DIR}/${DEFAULT_DICT_NAME}-a.dict")
+        set (GENERATOR_DICTIONARY_FILE "${DEFAULT_DICT_DIR}/${DEFAULT_DICT_NAME}-s.dict")
+        add_custom_command (
+            OUTPUT "${ANALYZER_DICTIONARY_FILE}" "${GENERATOR_DICTIONARY_FILE}" 
+            COMMAND python ${PROJECT_SOURCE_DIR}/fsabuilder/morfeusz_builder --input-files="${INPUT_DICTIONARIES}" --dict="${DEFAULT_DICT_NAME}" --dict-dir="${DEFAULT_DICT_DIR}"  --tagset-file="${INPUT_TAGSET}" --segments-file="${SEGMENT_RULES_FILE}"
+            DEPENDS "${INPUT_DICTIONARY}"
+            COMMENT "Building default dictionary files"
+        )
+        add_custom_target ( analyzer-dictionary DEPENDS "${ANALYZER_DICTIONARY_FILE}")
+        add_custom_target ( generator-dictionary DEPENDS "${GENERATOR_DICTIONARY_FILE}")
+        add_custom_target ( dictionary DEPENDS analyzer-dictionary generator-dictionary)
+    endif ()
+endif()
+
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
+
+#### build #####
+
+set(SRC_FILES 
+    const.cpp
+    Dictionary.cpp
+    DictionariesRepository.cpp
+    Environment.cpp
+    IdResolverImpl.cpp
+    fsa/const.cpp
+    MorphInterpretation.cpp 
+    Morfeusz.cpp
+    MorfeuszImpl.cpp
+    ResultsIteratorImpl.cpp
+    InflexionGraph.cpp
+    charset/TextReader.cpp
+    charset/CharsetConverter.cpp
+    case/CaseConverter.cpp
+    case/caseconv.cpp
+    charset/conversion_tables.cpp
+    cli/cli.cpp
+    segrules/segrules.cpp
+    segrules/SegrulesFSA.cpp
+    case/CasePatternHelper.cpp
+    deserialization/morphInterps/InterpretedChunksDecoder.cpp
+    deserialization/morphInterps/InterpretedChunksDecoder4Analyzer.cpp
+    deserialization/morphInterps/InterpretedChunksDecoder4Generator.cpp
+    deserialization/InterpsGroupsReader.cpp
+    deserialization/MorphDeserializer.cpp
+    morfeusz2_c.cpp
+    c_api/ResultsManager.cpp
+)
+
+if (EMBEDDED_DEFAULT_DICT)
+    list (APPEND SRC_FILES "${ANALYZER_DICTIONARY_CPP}" "${GENERATOR_DICTIONARY_CPP}")
+    set_source_files_properties ( SOURCE "${ANALYZER_DICTIONARY_CPP}" PROPERTIES GENERATED TRUE)
+    set_source_files_properties ( SOURCE "${GENERATOR_DICTIONARY_CPP}" PROPERTIES GENERATED TRUE)
+endif ()
+
+file (GLOB TEST_SRC_FILES tests/*.cpp)
+
+add_library (libmorfeusz SHARED ${SRC_FILES})
+set_target_properties (libmorfeusz PROPERTIES OUTPUT_NAME "morfeusz2")
+
+add_executable (morfeusz_analyzer morfeusz_analyzer.cpp)
+add_executable (morfeusz_generator morfeusz_generator.cpp)
+
+target_link_libraries (morfeusz_analyzer libmorfeusz)
+target_link_libraries (morfeusz_generator libmorfeusz)
+
+add_subdirectory (wrappers)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    add_custom_target (morfeusz-repair-library
+        COMMAND ${INSTALL_NAME_TOOL} -id libmorfeusz2.dylib ${CMAKE_CURRENT_BINARY_DIR}/libmorfeusz2.dylib
+        DEPENDS libmorfeusz)
+    add_dependencies (morfeusz_analyzer morfeusz-repair-library)
+endif ()
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    target_link_libraries (libmorfeusz ws2_32)
+    set (TARGET_LIB_DIR bin)
+else ()
+    set (TARGET_LIB_DIR lib)
+endif ()
+
+install (FILES morfeusz2.h morfeusz2_c.h DESTINATION include)
+if (NOT EMBEDDED_DEFAULT_DICT)
+    add_dependencies (libmorfeusz dictionary)
+    install (FILES "${ANALYZER_DICTIONARY_FILE}" "${GENERATOR_DICTIONARY_FILE}" DESTINATION "${DEFAULT_DICT_INSTALL_DIR}")
+endif ()
+install (TARGETS libmorfeusz DESTINATION ${TARGET_LIB_DIR})
+install (TARGETS morfeusz_analyzer morfeusz_generator DESTINATION bin)
+
+# TESTING
+
+if (NOT CMAKE_CROSSCOMPILING AND NOT SKIP_TESTING)
+    find_library(CPPUNIT_LIB cppunit)
+    if(${CPPUNIT_LIB} STREQUAL "CPPUNIT_LIB-NOTFOUND")
+        message(FATAL_ERROR "Couldn't find cppunit library. Please install cppunit or add -D SKIP_TESTING=1 option.")
+    endif()
+    add_executable (test_runner test_runner.cpp ${TEST_SRC_FILES})
+    target_link_libraries (test_runner ${CPPUNIT_LIB} libmorfeusz)
+    add_custom_target (build-tests DEPENDS test_runner)
+    add_test(CPPUnitTests test_runner)
+endif ()
