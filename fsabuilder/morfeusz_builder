@@ -219,11 +219,11 @@ def _readDictIdAndCopyright(inputFiles):
                         copyright += line
 
     if dictId is None:
-        logging.warn(u'No dictionary ID tag found')
+        logging.warning(u'No dictionary ID tag found')
         dictId = u''
 
     if copyright is None:
-        logging.warn(u'No copyright info found')
+        logging.warning(u'No copyright info found')
         copyright = u''
 
     return (dictId, copyright)

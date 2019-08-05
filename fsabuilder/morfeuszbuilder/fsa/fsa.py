@@ -34,7 +34,8 @@ class FSA(object):
         assert not self.closed
         assert data is not None
         encodedWord = self.encodeWord(word)
-        assert encodedWord > self.encodedPrevWord
+        # TypeError: '>' not supported between instances of 'bytearray' and 'NoneType' (Py3)
+        assert self.encodedPrevWord is None or encodedWord > self.encodedPrevWord
         self._addSorted(encodedWord, self.encodeData(data))
         self.encodedPrevWord = encodedWord
 
@@ -77,7 +78,7 @@ class FSA(object):
         return res
 
     def _addSorted(self, encodedWord, data):
-        assert self.encodedPrevWord < encodedWord
+        assert self.encodedPrevWord is None or self.encodedPrevWord < encodedWord
         assert type(data) == bytearray
         q = self.initialState
         i = 0

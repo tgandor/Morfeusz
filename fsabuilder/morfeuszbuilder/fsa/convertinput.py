@@ -166,7 +166,9 @@ class PolimorfConverter4Generator(object):
     def _partiallyParseLines(self, inputLines):
         lineParser = LineParser()
         for line in inputLines:
-            line = line.decode(self.inputEncoding).strip('\n')
+            if hasattr(line, 'decode'):
+                line = line.decode(self.inputEncoding)
+            line = line.strip('\n')
             if not lineParser.ignoreLine(line):
                 orth, base, tag, name, qualifier = lineParser.parseLine(line)
                 if base:
@@ -185,32 +187,34 @@ class PolimorfConverter4Generator(object):
                         # print 'replace %s %s %s %d with %s %s %s %d' % (orth, base, tag, typenum, orth, orth, tag, typenum)
                         base = orth
 
-                    yield '\t'.join((
-                                orth.encode(self.inputEncoding),
-                                base.encode(self.inputEncoding),
-                                str(tagnum),
-                                str(namenum),
-                                str(typenum),
-                                homonymId.encode(self.inputEncoding),
-                                str(qualsnum)))
+                    yield b'\t'.join((
+                        orth.encode(self.inputEncoding),
+                        base.encode(self.inputEncoding),
+                        str(tagnum).encode(self.inputEncoding),
+                        str(namenum).encode(self.inputEncoding),
+                        str(typenum).encode(self.inputEncoding),
+                        homonymId.encode(self.inputEncoding),
+                        str(qualsnum).encode(self.inputEncoding)
+                    ))
 
                     if self.segmentRulesManager.shiftOrthMagic.getNewSegnum4ShiftOrth(typenum) != None:
                         base = orth
                         typenum = self.segmentRulesManager.shiftOrthMagic.getNewSegnum4ShiftOrth(typenum)
-                        yield '\t'.join((
-                                orth.encode(self.inputEncoding),
-                                base.encode(self.inputEncoding),
-                                str(tagnum),
-                                str(namenum),
-                                str(typenum),
-                                homonymId.encode(self.inputEncoding),
-                                str(qualsnum)))
+                        yield b'\t'.join((
+                            orth.encode(self.inputEncoding),
+                            base.encode(self.inputEncoding),
+                            str(tagnum).encode(self.inputEncoding),
+                            str(namenum).encode(self.inputEncoding),
+                            str(typenum).encode(self.inputEncoding),
+                            homonymId.encode(self.inputEncoding),
+                            str(qualsnum).encode(self.inputEncoding)
+                        ))
                 else:
                     logging.warn('Ignoring line: "%s" - contains empty lemma', line.strip())
 
     # input lines are encoded and partially parsed
     def _sortLines(self, inputLines):
-        return sorted(inputLines, key=lambda line: (self.encoder.word2SortKey(line.split('\t')[1].decode('utf8')), line))
+        return sorted(inputLines, key=lambda line: (self.encoder.word2SortKey(line.split(b'\t')[1].decode('utf8')), line))
 
     def _reallyParseLines(self, inputLines):
         prevLine = None
