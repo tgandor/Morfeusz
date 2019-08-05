@@ -7,7 +7,8 @@ Created on 23 sty 2014
 import re
 from pyparsing import *
 from morfeuszbuilder.utils import exceptions
-from pyparseString import pyparseString
+from morfeuszbuilder.fsa.common import _a
+from morfeuszbuilder.segrules.pyparseString import pyparseString
 
 identifier = Word(alphas, bodyChars=alphanums+u'_>*+{},')
 define = Keyword('#define').suppress() + identifier + Optional(Suppress('(') + Word(alphas, bodyChars=alphanums+u'_') + Suppress(')')) + restOfLine + LineEnd() + StringEnd()
@@ -15,24 +16,24 @@ ifdef = Keyword('#ifdef').suppress() + identifier + LineEnd() + StringEnd()
 endif = Keyword('#endif').suppress() + LineEnd() + StringEnd()
 
 class NonArgDefine(object):
-    
+
     def __init__(self, name, val):
         self.name = name
         self.val = val
-    
+
     def hasArg(self):
         return False
 
 class ArgDefine(object):
-    
+
     def __init__(self, name, arg, val):
         self.name = name
         self.arg = arg
         self.val = val
-    
+
     def hasArg(self):
         return True
-    
+
     def __str__(self):
         return '%s(%s) %s' % (self.name, self.arg, self.val)
 
@@ -48,9 +49,9 @@ def _tryToSubstituteArgDefine(s, t, defines):
         return '%s ( %s )' % (defineName, substituteValue)
 
 def _tryToSubstituteNonArgDefine(s, t, defines):
-    
+
     defineName = t[0]
-    
+
     if defineName in defines and not defines[defineName].hasArg():
         return defines[defineName].val
     else:
@@ -59,15 +60,15 @@ def _tryToSubstituteNonArgDefine(s, t, defines):
 def _processLine(lineNum, line, defines, filename):
     #~ print 'PROCESS', line.strip()
     if line.strip():
-        
+
         rule = Forward()
         defineInstance = Forward()
         localId = identifier.copy()
         weakLiteral = CaselessLiteral('!weak')
-        
+
         rule << OneOrMore(defineInstance ^ localId ^ Word('*|+?>') ^ (Literal('(') + rule + Literal(')')) ^ weakLiteral)
         defineInstance << localId + Suppress('(') + rule + Suppress(')')
-        
+
         rule.setParseAction(lambda s, l, t: ' '.join(t))
         defineInstance.setParseAction(lambda s, l, t: _tryToSubstituteArgDefine(s, t, defines))
         localId.setParseAction(lambda s, l, t: _tryToSubstituteNonArgDefine(s, t, defines))
@@ -107,5 +108,8 @@ def preprocess(inputLines, defs, filename):
             ifdefsStack.pop()
         elif line.startswith('#'):
             yield lineNum, line
-        elif len(ifdefsStack) == 0 or all(map(lambda (name, isActive): (name in defs and isActive) or (name not in defs and not isActive), ifdefsStack)):
+        elif (
+            len(ifdefsStack) == 0
+            or all((name in defs and isActive) or (name not in defs and not isActive) for name, isActive in ifdefsStack)
+        ):
             yield lineNum, _processLine(lineNum, line, defines, filename)

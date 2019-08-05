@@ -7,21 +7,22 @@ Created on 17 lut 2014
 import codecs
 import re
 from morfeuszbuilder.utils.exceptions import FSABuilderException
+from morfeuszbuilder.fsa.common import _a
 
 class Tagset(object):
-    
+
     TAGS = 1
     NAMES = 2
     SEP = '\t'
-    
+
     def __init__(self, filename=None, encoding='utf8'):
         self.tagsetId = None
         self.tag2tagnum = {}
         #~ self._name2namenum = {}
         if filename:
             self._doInit(filename, encoding)
-        self._tagnum2tag = dict(map(lambda (k, v): (v, k), self.tag2tagnum.iteritems()))
-    
+        self._tagnum2tag = dict(map(_a(lambda k, v: (v, k)), self.tag2tagnum.items()))
+
     def _doInit(self, filename, encoding):
         insideTags = False
         with codecs.open(filename, 'r', encoding) as f:
@@ -50,15 +51,15 @@ class Tagset(object):
                     if int(tagNum) in res.values():
                         raise FSABuilderException('line %d: tagId %d assigned for tag "%s" already appeared somewhere else.' % (linenum, int(tagNum), tag))
                     res[tag] = int(tagNum)
-    
+
     def getAllTags(self):
         return self.tag2tagnum.keys()
-    
+
     def getTagnum4Tag(self, tag):
         if tag in self.tag2tagnum:
             return self.tag2tagnum[tag]
         else:
             raise FSABuilderException('invalid tag: "%s"' % tag)
-    
+
     def getTag4Tagnum(self, tagnum):
         return self._tagnum2tag[tagnum]

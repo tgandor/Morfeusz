@@ -3,10 +3,17 @@ Created on 17 lut 2014
 
 @author: mlenart
 '''
-import re
-import logging
+
 import itertools
+import logging
+import re
+import  sys
+
 from morfeuszbuilder.utils import exceptions
+
+if sys.version_info > (2,):
+    unicode = str
+
 
 def _getLemmaHomonymPair(lemma):
     if lemma is None:
@@ -20,16 +27,16 @@ def _getLemmaHomonymPair(lemma):
         return (lemma, None)
 
 class Segtypes(object):
-    
+
     def __init__(self, tagset, namesMap, labelsMap, segrulesConfigFile):
-        
+
         self.tagset = tagset
         self.namesMap = namesMap
         self.labelsMap = labelsMap
-        self._reverseLabelsMap = dict([(v, k) for (k, v) in labelsMap.iteritems()])
-        
+        self._reverseLabelsMap = dict((v, k) for k, v in labelsMap.items())
+
         self.filename = segrulesConfigFile.filename
-        
+
         self.segtypes = []
         # self.segtype2Segnum = {}
         # self.segnum2Segtype = {}
@@ -40,32 +47,32 @@ class Segtypes(object):
 
         # self._tagnum2Segnum = {}
         # self._lemmaTagnum2Segnum = {}
-        
+
         self._readSegtypes(segrulesConfigFile)
         self._readLexemes(segrulesConfigFile)
         self._readTags(segrulesConfigFile)
         self._indexSegnums()
-        
+
 #         print self._lemmaTagnum2Segnum
 #         print self._tagnum2Segnum
         logging.info('segment number -> segment type')
         logging.info('------------------------------')
         logging.info(dict(enumerate(self.segtypes)))
         logging.info('------------------------------')
-        
+
     def _validate(self, msg, lineNum, cond):
         if not cond:
             raise exceptions.ConfigFileException(self.filename, lineNum, msg)
-    
+
     def _readSegtypes(self, segrulesConfigFile):
         for lineNum, line in segrulesConfigFile.enumerateLinesInSection('segment types'):
             assert type(line) == unicode
             self._validate(
-                           u'Segment type must be a single word', 
+                           u'Segment type must be a single word',
                            lineNum,
                            re.match(r'^\w+$', line))
             self._validate(
-                           u'Segment type already defined: "%s"' % line, 
+                           u'Segment type already defined: "%s"' % line,
                            lineNum,
                            line not in self.segtypes)
             self.segtypes.append(line)
@@ -84,7 +91,7 @@ class Segtypes(object):
             u'There must be a pattern that matches everything at the end of [tags] section',
             lineNum,
             self.patternsList[-1].isWildcardPattern())
-    
+
     def _readLexemes(self, segrulesConfigFile):
         for lineNum, line in segrulesConfigFile.enumerateLinesInSection('lexemes'):
             self._parsePattern(lineNum, line, withLemma=True)
@@ -157,7 +164,7 @@ class Segtypes(object):
 
     def _getAllExistingLabelsnumCombinations(self, labels):
         if labels:
-            for labelsCombination, labelsnum in self.labelsMap.iteritems():
+            for labelsCombination, labelsnum in self.labelsMap.items():
                 if labels <= labelsCombination:
                     yield labelsnum
         else:
@@ -182,15 +189,15 @@ class Segtypes(object):
             self._indexOnePattern(p)
         #~ print 'DEBUG', self._segnumsMap[(None, 23)]
         # logging.info(self._segnumsMap)
-    
+
     def hasSegtype(self, segTypeString):
         # return segTypeString in self.segtype2Segnum
         return segTypeString in self.segtypes
-    
+
     def getSegnum4Segtype(self, segTypeString):
         return self.segtypes.index(segTypeString)
         # return self.segtype2Segnum[segTypeString]
-    
+
     def lexeme2Segnum(self, lemma, tagnum, namenum, labelsnum):
         lemma, homonym = _getLemmaHomonymPair(lemma)
         if (lemma, tagnum) in self._segnumsMap:
@@ -210,9 +217,9 @@ class Segtypes(object):
 
     def getMaxSegnum(self):
         return len(self.segtypes) - 1
-    
+
 class SegtypePattern(object):
-    
+
     def __init__(self, lemma, pattern, name, labels, segnum):
         self.lemma = _getLemmaHomonymPair(lemma)[0]
         self.homonym = _getLemmaHomonymPair(lemma)[1]

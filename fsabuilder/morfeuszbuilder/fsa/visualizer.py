@@ -19,7 +19,7 @@ class Visualizer(object):
         nodeLabelsMap = {}
         for idx, state in enumerate(allStates):
             G.add_node(idx, offset=state.offset)
-            for c, targetState in state.transitionsMap.iteritems():
+            for c, targetState in state.transitionsMap.items():
                 G.add_edge(idx, allStates.index(targetState))
                 label = (chr(c) if c <= 127 else '%') if charLabels \
                     else c

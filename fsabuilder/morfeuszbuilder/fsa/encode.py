@@ -86,7 +86,7 @@ class Encoder(object):
         
         res = bytearray()
         
-        for typenum, interpsList in segnum2Interps.iteritems():
+        for typenum, interpsList in segnum2Interps.items():
             res.extend(self._encodeInterps4Type(typenum, interpsList))
         del interpsList
         

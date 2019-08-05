@@ -53,7 +53,7 @@ class RulesParser(object):
         res = rulesManager.RulesManager(segtypesHelper, separatorsList)
         
         def2Key = {}
-        for key, defs in key2Defs.iteritems():
+        for key, defs in key2Defs.items():
             for define in defs:
                 def2Key[define] = key
         
@@ -200,7 +200,7 @@ class RulesParser(object):
         shiftOrthSegtypes = set()
         nonShiftOrthSegtypes = set()
 
-        for _, rules in resultsMap.iteritems():
+        for _, rules in resultsMap.items():
             for rule in rules:
                 for atomicRule in rule.getAtomicRules():
                     if atomicRule.shiftOrth:

@@ -6,9 +6,22 @@ Created on Nov 7, 2013
 
 import codecs
 import logging
+import sys
+
+if sys.version_info > (2,):
+    unicode = str
+
+
+def _a(lambda_):
+    """Apply lambda - simulate tuple unpacking for Python3."""
+
+    def inner(args):
+        return lambda_(*args)
+
+    return inner
+
 
 class EncodedFormWithoutPrefix(object):
-    
     def __init__(self, fromWord, targetWord, lowercase):
         assert type(fromWord) == unicode
         assert type(targetWord) == unicode
@@ -23,8 +36,8 @@ class EncodedFormWithoutPrefix(object):
         self.casePattern = [c == c.upper() and c != c.lower() for c in root]
 #         self.prefixCutLength = 0
 
+
 class EncodedForm4Generator(object):
-    
     def __init__(self, fromWord, targetWord):
         assert type(fromWord) == unicode
         assert type(targetWord) == unicode
@@ -37,13 +50,13 @@ class EncodedForm4Generator(object):
                 bestEncodedForm = encodedForm
                 bestPrefixLength = prefixLength
         assert bestPrefixLength >= 0
-        
+
         self.cutLength = bestEncodedForm.cutLength
         self.suffixToAdd = bestEncodedForm.suffixToAdd
         self.prefixToAdd = targetWord[:bestPrefixLength]
 
+
 class EncodedForm4Analyzer(object):
-    
     def __init__(self, fromWord, targetWord):
         assert type(fromWord) == unicode
         assert type(targetWord) == unicode
@@ -56,14 +69,14 @@ class EncodedForm4Analyzer(object):
                 bestEncodedForm = encodedForm
                 bestPrefixCutLength = prefixCutLength
         assert bestPrefixCutLength >= 0
-        
+
         self.prefixCutLength = bestPrefixCutLength
         self.cutLength = bestEncodedForm.cutLength
         self.suffixToAdd = bestEncodedForm.suffixToAdd
         self.casePattern = bestEncodedForm.casePattern
-        
+
 class Interpretation4Analyzer(object):
-    
+
     def __init__(self, orth, base, tagnum, namenum, typenum, qualifiers):
         self.encodedForm = EncodedForm4Analyzer(orth, base)
         self.orthCasePattern = [c == c.upper() and c != c.lower() for c in orth[:len(orth) - self.encodedForm.cutLength]]
@@ -71,29 +84,29 @@ class Interpretation4Analyzer(object):
         self.namenum = namenum
         self.typenum = typenum
         self.qualifiers = qualifiers
-    
+
     def getSortKey(self):
         return (
                 self.encodedForm.cutLength,
                 self.encodedForm.prefixCutLength,
-                tuple(self.encodedForm.suffixToAdd), 
+                tuple(self.encodedForm.suffixToAdd),
                 tuple(self.encodedForm.casePattern),
                 tuple(self.orthCasePattern),
-                self.tagnum, 
+                self.tagnum,
                 self.namenum,
                 self.typenum)
-    
+
     def __eq__(self, other):
         if isinstance(other, Interpretation4Analyzer):
             return self.getSortKey() == other.getSortKey()
         else:
             return False
-    
+
     def __hash__(self):
         return hash(self.getSortKey())
 
 class Interpretation4Generator(object):
-    
+
     def __init__(self, orth, base, tagnum, namenum, typenum, homonymId, qualifiers):
         self.lemma = base
         self.encodedForm = EncodedForm4Generator(base, orth)
@@ -102,28 +115,28 @@ class Interpretation4Generator(object):
         self.typenum = typenum
         self.homonymId = homonymId
         self.qualifiers = qualifiers
-    
+
     def getSortKey(self):
         return (
                 self.homonymId,
                 self.tagnum,
-                self.encodedForm.cutLength, 
+                self.encodedForm.cutLength,
                 tuple(self.encodedForm.suffixToAdd),
-#                 tuple(self.encodedForm.casePattern), 
+#                 tuple(self.encodedForm.casePattern),
                 self.namenum,
                 self.typenum)
-    
+
     def __eq__(self, other):
         if isinstance(other, Interpretation4Generator):
             return self.getSortKey() == other.getSortKey()
         else:
             return False
-    
+
     def __hash__(self):
         return hash(self.getSortKey())
-    
+
     def __unicode__(self):
         return u'<%s,(%d %s),%d,%d>' % (self.lemma.decode('utf8'), self.encodedForm.cutLength, self.encodedForm.suffixToAdd.decode('utf8'), self.tagnum, self.namenum)
-    
+
     def __repr__(self):
         return unicode(self)

@@ -4,8 +4,7 @@ Created on Oct 23, 2013
 @author: mlenart
 '''
 import logging
-from common import Interpretation4Analyzer
-from morfeuszbuilder.fsa.common import Interpretation4Generator
+from morfeuszbuilder.fsa.common import Interpretation4Generator, Interpretation4Analyzer
 #from morfeuszbuilder.fsa import externalsort
 
 def _mergeEntries(inputLines, lowercase):
@@ -74,7 +73,7 @@ def parseQualifiers(string):
         return frozenset()
 
 class PolimorfConverter4Analyzer(object):
-    
+
     def __init__(self, tagset, namesMap, qualifiersMap, encoder, inputEncoding, segmentRulesManager):
         self.tagset = tagset
         self.namesMap = namesMap
@@ -82,15 +81,19 @@ class PolimorfConverter4Analyzer(object):
         self.encoder = encoder
         self.inputEncoding = inputEncoding
         self.segmentRulesManager = segmentRulesManager
-    
+
     # we do it the ugly way (parse to plain text) because it is way more memory-efficient
     def _partiallyParseLines(self, inputLines):
         lineParser = LineParser()
         for line in inputLines:
-            line = line.decode(self.inputEncoding).strip('\n')
+            if hasattr(line, 'decode'):
+                # Py2, bytes
+                line = line.decode(self.inputEncoding)
+            line = line.strip('\n')
+
             if not lineParser.ignoreLine(line):
                 orth, base, tag, name, qualifier = lineParser.parseLine(line)
-                
+
                 tagnum = self.tagset.getTagnum4Tag(tag)
                 namenum = self.namesMap[name]
                 qualifiers = parseQualifiers(qualifier)
@@ -104,14 +107,14 @@ class PolimorfConverter4Analyzer(object):
                 if self.segmentRulesManager.shiftOrthMagic.shouldReplaceLemmaWithOrth(typenum):
                     # print 'replace %s %s %s %d with %s %s %s %d' % (orth, base, tag, typenum, orth, orth, tag, typenum)
                     base = orth
-
-                yield '\t'.join((
+                #import code; code.interact(local=locals())
+                yield b'\t'.join((
                             orth.encode(self.inputEncoding),
                             base.encode(self.inputEncoding),
-                            str(tagnum),
-                            str(namenum),
-                            str(typenum), 
-                            str(qualsnum)))
+                            str(tagnum).encode(self.inputEncoding),
+                            str(namenum).encode(self.inputEncoding),
+                            str(typenum).encode(self.inputEncoding),
+                            str(qualsnum).encode(self.inputEncoding)))
 
                 if self.segmentRulesManager.shiftOrthMagic.getNewSegnum4ShiftOrth(typenum) != None:
                     # print 'add to existing %s %s %s %d also this: %s %s %s %d' % (orth, base, tag, typenum, orth, orth, tag, self.segmentRulesManager.shiftOrthMagic.getNewSegnum4ShiftOrth(typenum))
@@ -124,15 +127,19 @@ class PolimorfConverter4Analyzer(object):
                             str(namenum),
                             str(typenum),
                             str(qualsnum)))
-    
+
     # input lines are encoded and partially parsed
     def _sortLines(self, inputLines):
-        return sorted(inputLines, key=lambda line: self.encoder.word2SortKey(line.split('\t')[0].decode('utf8')))
+        return sorted(inputLines, key=lambda line: self.encoder.word2SortKey(line.split(b'\t')[0].decode('utf8')))
 #         return sorted(inputLines, key=lambda line: self.encoder.word2SortKey(line.split('\t')[0].decode('utf8')))
-    
+
     def _reallyParseLines(self, inputLines):
         for line in inputLines:
-            line = line.decode(self.inputEncoding).strip(u'\n')
+            if hasattr(line, 'decode'):
+                # Py2, bytes
+                line = line.decode(self.inputEncoding)
+            line = line.strip(u'\n')
+
             if line:
                 orth, base, tagnum, namenum, typenum, qualsnum = line.split(u'\t')
                 tagnum = int(tagnum)
@@ -146,7 +153,7 @@ class PolimorfConverter4Analyzer(object):
         return _mergeEntries(self._reallyParseLines(self._sortLines(self._partiallyParseLines(inputLines))), lowercase=True)
 
 class PolimorfConverter4Generator(object):
-    
+
     def __init__(self, tagset, namesMap, qualifiersMap, encoder, inputEncoding, segmentRulesManager):
         self.tagset = tagset
         self.namesMap = namesMap
@@ -154,7 +161,7 @@ class PolimorfConverter4Generator(object):
         self.encoder = encoder
         self.inputEncoding = inputEncoding
         self.segmentRulesManager = segmentRulesManager
-    
+
     # we do it the ugly way (parse to plain text) because it is way more memory-efficient
     def _partiallyParseLines(self, inputLines):
         lineParser = LineParser()
@@ -179,12 +186,12 @@ class PolimorfConverter4Generator(object):
                         base = orth
 
                     yield '\t'.join((
-                                orth.encode(self.inputEncoding), 
-                                base.encode(self.inputEncoding), 
-                                str(tagnum), 
-                                str(namenum), 
+                                orth.encode(self.inputEncoding),
+                                base.encode(self.inputEncoding),
+                                str(tagnum),
+                                str(namenum),
                                 str(typenum),
-                                homonymId.encode(self.inputEncoding), 
+                                homonymId.encode(self.inputEncoding),
                                 str(qualsnum)))
 
                     if self.segmentRulesManager.shiftOrthMagic.getNewSegnum4ShiftOrth(typenum) != None:
@@ -200,11 +207,11 @@ class PolimorfConverter4Generator(object):
                                 str(qualsnum)))
                 else:
                     logging.warn('Ignoring line: "%s" - contains empty lemma', line.strip())
-    
+
     # input lines are encoded and partially parsed
     def _sortLines(self, inputLines):
         return sorted(inputLines, key=lambda line: (self.encoder.word2SortKey(line.split('\t')[1].decode('utf8')), line))
-    
+
     def _reallyParseLines(self, inputLines):
         prevLine = None
         for line in inputLines:
@@ -220,6 +227,6 @@ class PolimorfConverter4Generator(object):
                 qualsnum = int(qualsnum)
                 #~ qualifiers = qualifierStr.split('|') if qualifierStr else ()
                 yield (base, Interpretation4Generator(orth, base, tagnum, namenum, typenum, homonymId, qualsnum))
-    
+
     def convert(self, inputLines):
         return _mergeEntries(self._reallyParseLines(self._sortLines(self._partiallyParseLines(inputLines))), lowercase=False)
